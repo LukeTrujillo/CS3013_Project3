@@ -33,11 +33,17 @@ struct Visit {
 	//... mas aqui luego
 };
 
+
+
 struct ArrivalNode {
 		struct ArrivalNode *next;
 		unsigned int arrivalTime;
 		unsigned int thread_id;
 }
+
+struct Queue { 
+    struct ArrivalNode *front, *rear; 
+}; 
 
 
 unsigned int isNinja(int*);
@@ -45,7 +51,11 @@ unsigned int start;
 
 
 struct ArrivalNode *pirateHead;
-struct ArrivalNode *ninjaHead
+struct ArrivalNode *ninjaHead;
+struct Queue pirateQueue;
+struct Queue ninjaQueue;
+
+
 
 void *arrive(void *vargp) {
 	printf("Arrive() called...\n");
@@ -116,10 +126,33 @@ unsigned int isNinja(int *thread_id) {
 	return 0;
 }
 
-void addToQueue(unsigned int thread_id, unsigned int arrivalTime) {
-	//adds to the proper queue, make sure it is ordered by arrival time.
+void addToQueue(struct Queue *queue, unsigned int thread_id, unsigned int arrivalTime) {
+	//adds to the proper queue, make sure it is ordered by arrival time.	
+	struct ArrivalNode* head = queue->front
+	struct ArrivalNode* temp = (struct ArrivalNode*)malloc(sizeof(struct ArrivalNode)); 
+    temp->thread_id = thread_id; 
+    temp->arrivalTime = arrivalTime;
+	//if this arrives earlier than head, make this the first element
+	if (head->arrivalTime > arrivalTime){
+		temp->next = head;
+		queue->head = temp;
+		return
+	}
+	while (head != NULL){
+		//if this arrives eariler than next, insert
+		if ((head->next)->arrivalTime > arrivalTime)
+			break;
+		head = head->next;
+	}
+	temp->next = head->next;
+	if (temp->next == NULL)
+		queue->rear = temp;
+	head->next = temp;
 }
 
-struct ArrivalNode* popHead() {
+struct ArrivalNode* popHead(struct Queue *queue) {
 		//pops off the head of the queue
+	struct ArrivalNode ret = queue->first;
+	queue->first = (queue->first)->next;
+	return ret;
 }
