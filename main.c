@@ -15,6 +15,9 @@ unsigned int numTeams;
 unsigned int numPirates;
 unsigned int numNinjas;
 
+unsigned int money;
+
+
 // Holds the TID (Thread ID)
 pthread_t *pirates;
 pthread_t *ninjas;
@@ -97,17 +100,14 @@ void *arrive(void *vargp) {
 			addToQueue(&pirateQueue, *thread_id, arrival_time);
 
 	}	
-	
-	printf("dfsdfsdf\n");
 	pthread_mutex_unlock(&queueLock);
 
 	pthread_mutex_lock(&fittedLock);
 	
+	while(!openRoom());
+	
 	if(isNinja(thread_id)) getFitted(popHead(&ninjaQueue)->thread_id);
 	else getFitted(popHead(&pirateQueue)->thread_id);
-			
-	while(!openRoom());
-	pthread_mutex_unlock(&fittedLock);
 
 		
 	
@@ -127,11 +127,11 @@ unsigned int openRoom() {
 
 void getFitted(int thread_id) {
 
-
+	pthread_mutex_unlock(&fittedLock);
 
 	for(int x = 0; x < numTeams; x++) {
 		if(pthread_mutex_trylock(&costumeLock[x]) != 0) continue;
-		
+	
 		
 		int time = rand() % 12;
 		printf("Thread ID %d is being fitted by Team #%d for %d seconds.\n", thread_id, x, time);
@@ -140,19 +140,22 @@ void getFitted(int thread_id) {
 	
 		sleep(time);
 		
+		money += time;
 		
-		printf("leaving\n");
+		
+		
+		
+		printf("Opening up Team #%d\n", x);
 		//now create entry and charge the client
 			
 		pthread_mutex_unlock(&costumeLock[x]);
 		break;
 	}
 }
-
-
 int main(int argc, char** argv) {
 	
 		srand(time(0));
+		money = 0;
 		
 		numTeams = atoi(argv[1]);
 		numPirates = atoi(argv[2]);
@@ -169,6 +172,8 @@ int main(int argc, char** argv) {
 		//create the requiste threads
 			
 		pthread_exit(NULL);
+		
+		printf("Gold coins earned %d\n", money);
 		
 		pthread_mutex_destroy(&queueLock);
 		
