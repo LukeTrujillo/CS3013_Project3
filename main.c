@@ -209,15 +209,15 @@ unsigned int isNinja(int *thread_id) {
 
 void addToQueue(struct Queue *queue, unsigned int thread_id, unsigned int arrivalTime) {
 	//adds to the proper queue, make sure it is ordered by arrival time.	
-	struct ArrivalNode* head = queue->front
+	struct ArrivalNode* head = queue->front;
 	struct ArrivalNode* temp = (struct ArrivalNode*)malloc(sizeof(struct ArrivalNode)); 
     temp->thread_id = thread_id; 
     temp->arrivalTime = arrivalTime;
 	//if this arrives earlier than head, make this the first element
 	if (head->arrivalTime > arrivalTime){
 		temp->next = head;
-		queue->head = temp;
-		return
+		queue->front = temp;
+		return;
 	}
 	while (head != NULL){
 		//if this arrives eariler than next, insert
@@ -234,8 +234,8 @@ void addToQueue(struct Queue *queue, unsigned int thread_id, unsigned int arriva
 
 struct ArrivalNode* popHead(struct Queue *queue) {
 		//pops off the head of the queue
-	struct ArrivalNode ret = queue->first;
-	queue->first = (queue->first)->next;
+	struct ArrivalNode *ret = queue->front;
+	queue->front = (queue->front)->next;
 	return ret;
 }
 
