@@ -68,7 +68,7 @@ void getFitted();
 struct Queue pirateQueue;
 struct Queue ninjaQueue;
 
-
+unsigned int openRoom();
 
 
 void *arrive(void *vargp) {
@@ -95,8 +95,11 @@ void *arrive(void *vargp) {
 
 		}
 		
-			
-		pthread_mutex_lock(&accessLock);
+		
+		
+	
+	pthread_mutex_unlock(&queueLock);
+
 		
 			if(isNinja(thread_id)) {
 				printf("A ninja is being served at %d hours\n", arrival_time);
@@ -105,18 +108,26 @@ void *arrive(void *vargp) {
 			} else {
 					printf("A pirate served at %d hours\n", arrival_time);
 			}
+		
+		
+			while(!openRoom());
 			
 			getFitted();
 		
 		
-		
-		pthread_mutex_unlock(&accessLock);
-		
-	
-	pthread_mutex_unlock(&queueLock);
-	
 	
 	return NULL;
+}
+
+unsigned int openRoom() {
+	
+	for(int x = 0; x < numTeams; x++) {
+		if(pthread_mutex_trylock(&costumeLock[x]) != 0) continue;
+		
+		pthread_mutex_unlock(&costumeLock[x]);
+		return 1;
+	}
+	return 0;
 }
 
 void getFitted() {
@@ -234,7 +245,7 @@ void addToQueue(struct Queue *queue, unsigned int thread_id, unsigned int arriva
 
 struct ArrivalNode* popHead(struct Queue *queue) {
 		//pops off the head of the queue
-	struct ArrivalNode ret = queue->first;
+	struct ArrivalNode *ret = queue->first;
 	queue->first = (queue->first)->next;
 	return ret;
 }
