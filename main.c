@@ -55,15 +55,17 @@ struct ArrivalNode *ninjaHead;
 
 
 pthread_mutex_t queueLock;
+pthread_mutex_t fittedLock;
 pthread_mutex_t *costumeLock;
 
 pthread_cond_t ninjaOnlyCondition = PTHREAD_COND_INITIALIZER;
 
 pthread_mutex_t accessLock;
 
+void addToQueue(struct Queue *, unsigned int, unsigned int);
+struct ArrivalNode* popHead(struct Queue *);
 
-
-void getFitted();
+void getFitted(int);
 
 struct Queue pirateQueue;
 struct Queue ninjaQueue;
@@ -83,37 +85,30 @@ void *arrive(void *vargp) {
 	int *thread_id = (int *) vargp;
 	
 	pthread_mutex_lock(&queueLock);
+	
+	if(isNinja(thread_id)) {
+			printf("A ninja arrived at %d hours\n", arrival_time);
+			
+			addToQueue(&ninjaQueue, *thread_id, arrival_time);
 
-	
-	
-		if(isNinja(thread_id)) {
-				printf("A ninja arrived at %d hours\n", arrival_time);
-	
-				
-		} else {
-				printf("A pirate arrived at %d hours\n", arrival_time);
+			
+	} else {
+			printf("A pirate arrived at %d hours\n", arrival_time);
+			addToQueue(&pirateQueue, *thread_id, arrival_time);
 
-		}
-		
-		
-		
+	}	
 	
+	printf("dfsdfsdf\n");
 	pthread_mutex_unlock(&queueLock);
 
-		
-			if(isNinja(thread_id)) {
-				printf("A ninja is being served at %d hours\n", arrival_time);
+	pthread_mutex_lock(&fittedLock);
 	
-					
-			} else {
-					printf("A pirate served at %d hours\n", arrival_time);
-			}
-		
-		
-			while(!openRoom());
+	if(isNinja(thread_id)) getFitted(popHead(&ninjaQueue)->thread_id);
+	else getFitted(popHead(&pirateQueue)->thread_id);
 			
-			getFitted();
-		
+	while(!openRoom());
+	pthread_mutex_unlock(&fittedLock);
+
 		
 	
 	return NULL;
@@ -130,7 +125,7 @@ unsigned int openRoom() {
 	return 0;
 }
 
-void getFitted() {
+void getFitted(int thread_id) {
 
 
 
@@ -138,10 +133,10 @@ void getFitted() {
 		if(pthread_mutex_trylock(&costumeLock[x]) != 0) continue;
 		
 		
-		printf("Fitted by team %d\n", 0) ;
+		int time = rand() % 12;
+		printf("Thread ID %d is being fitted by Team #%d for %d seconds.\n", thread_id, x, time);
 		//choose the amount of time to be in the room
-		
-		unsigned int time = 2;
+	
 	
 		sleep(time);
 		
@@ -194,6 +189,7 @@ void makeThreads() {
 		}
 	}
 	pthread_mutex_init(&accessLock, NULL);
+	pthread_mutex_init(&fittedLock, NULL);
 	
 	
 	printf("Making threads..\n");
@@ -219,18 +215,34 @@ unsigned int isNinja(int *thread_id) {
 }
 
 void addToQueue(struct Queue *queue, unsigned int thread_id, unsigned int arrivalTime) {
+	
+	
+	if(queue->front == NULL) {
+		struct ArrivalNode* temp = (struct ArrivalNode*)malloc(sizeof(struct ArrivalNode)); 
+		temp->thread_id = thread_id; 
+		temp->arrivalTime = arrivalTime;
+		queue->front = temp;
+		queue->rear = temp;
+		return;
+	}
 	//adds to the proper queue, make sure it is ordered by arrival time.	
-	struct ArrivalNode* head = queue->front
+	struct ArrivalNode* head = queue->front;
+	
+	
+	
+	
+	
 	struct ArrivalNode* temp = (struct ArrivalNode*)malloc(sizeof(struct ArrivalNode)); 
     temp->thread_id = thread_id; 
     temp->arrivalTime = arrivalTime;
 	//if this arrives earlier than head, make this the first element
+	
 	if (head->arrivalTime > arrivalTime){
 		temp->next = head;
-		queue->head = temp;
-		return
+		queue->front = temp;
+		return;
 	}
-	while (head != NULL){
+	while (head->next != NULL){
 		//if this arrives eariler than next, insert
 		if ((head->next)->arrivalTime > arrivalTime)
 			break;
@@ -245,8 +257,9 @@ void addToQueue(struct Queue *queue, unsigned int thread_id, unsigned int arriva
 
 struct ArrivalNode* popHead(struct Queue *queue) {
 		//pops off the head of the queue
-	struct ArrivalNode *ret = queue->first;
-	queue->first = (queue->first)->next;
+
+	struct ArrivalNode *ret = queue->front;
+	queue->front = (queue->front)->next;
 	return ret;
 }
 
