@@ -8,6 +8,8 @@
 
 #include <pthread.h>
 
+#include <time.h>
+
 
 
 // Supplied parameters
@@ -61,6 +63,8 @@ pthread_mutex_t queueLock;
 pthread_mutex_t fittedLock;
 pthread_mutex_t *costumeLock;
 
+pthread_mutex_t withhold_pirates;
+
 pthread_cond_t ninjaOnlyCondition = PTHREAD_COND_INITIALIZER;
 
 pthread_mutex_t accessLock;
@@ -74,11 +78,14 @@ struct Queue pirateQueue;
 struct Queue ninjaQueue;
 
 unsigned int openRoom();
+void decide();
+unsigned int countQueueSize(struct Queue*);
 
+unsigned long gameClock;
+
+unsigned int ninjaTurn;
 
 void *arrive(void *vargp) {
-	printf("Arrive() called...\n");
-	
 	int arrival_time = rand() % 24;
 	
 	while(!start);
@@ -101,6 +108,9 @@ void *arrive(void *vargp) {
 
 	}	
 	pthread_mutex_unlock(&queueLock);
+	
+	
+	while((isNinja(thread_id) && ninjaTurn) || (!isNinja(thread_id) && !ninjaTurn));
 
 	pthread_mutex_lock(&fittedLock);
 	
@@ -112,6 +122,44 @@ void *arrive(void *vargp) {
 		
 	
 	return NULL;
+}
+
+//This should choose whether or not you switch teams
+void decide() {
+	
+	unsigned int ninjaSize = countQueueSize(&ninjaQueue);
+	unsigned int pirateSize = countQueueSize(&pirateQueue);
+	
+	
+	printf("\nninjaQ: %d pirateQ: %d ", ninjaSize, pirateSize);
+	
+	
+	if(ninjaSize >= numTeams && ninjaSize != 0) {
+			if(pirateSize >= numTeams) {
+				
+				
+				unsigned urgencyNinjaSize = (ninjaQueue.front)->arrivalTime;
+				unsigned urgencyPirateSize = (pirateQueue.front)->arrivalTime;
+				
+				
+				if(urgencyNinjaSize < urgencyPirateSize) {
+					ninjaTurn = 1;
+				} else {
+					ninjaTurn = 0;
+				}
+				
+				
+			} else {
+				ninjaTurn = 1;
+			}
+	} else if(pirateSize >= numTeams) {
+		ninjaTurn = 0;
+	}
+
+	
+	if(ninjaTurn == 0) printf("choose pirates\n\n");
+	else printf("choose ninjas\n");
+
 }
 
 unsigned int openRoom() {
@@ -141,8 +189,8 @@ void getFitted(int thread_id) {
 		sleep(time);
 		
 		money += time;
-		
-		
+	
+		decide();
 		
 		
 		printf("Opening up Team #%d\n", x);
@@ -182,7 +230,6 @@ int main(int argc, char** argv) {
 		}
 	
 }
-
 void makeThreads() {
 	if(pthread_mutex_init(&queueLock, NULL) != 0) {
 			printf("queueLock failed\n");
@@ -195,6 +242,7 @@ void makeThreads() {
 	}
 	pthread_mutex_init(&accessLock, NULL);
 	pthread_mutex_init(&fittedLock, NULL);
+	pthread_mutex_init(&withhold_pirates, NULL);
 	
 	
 	printf("Making threads..\n");
@@ -207,10 +255,10 @@ void makeThreads() {
 		pthread_create(&ninjas[x], NULL, arrive, (void *) &ninjas[x]);
 	}
 	
+	gameClock = time(NULL); //start the timer for the game
 	start = 1;
 	
 }
-
 unsigned int isNinja(int *thread_id) {
 	
 	for(int x = 0; x < numNinjas; x++) {
@@ -218,7 +266,6 @@ unsigned int isNinja(int *thread_id) {
 	}
 	return 0;
 }
-
 void addToQueue(struct Queue *queue, unsigned int thread_id, unsigned int arrivalTime) {
 	
 	
@@ -232,10 +279,6 @@ void addToQueue(struct Queue *queue, unsigned int thread_id, unsigned int arriva
 	}
 	//adds to the proper queue, make sure it is ordered by arrival time.	
 	struct ArrivalNode* head = queue->front;
-	
-	
-	
-	
 	
 	struct ArrivalNode* temp = (struct ArrivalNode*)malloc(sizeof(struct ArrivalNode)); 
     temp->thread_id = thread_id; 
@@ -258,8 +301,6 @@ void addToQueue(struct Queue *queue, unsigned int thread_id, unsigned int arriva
 		queue->rear = temp;
 	head->next = temp;
 }
-
-
 struct ArrivalNode* popHead(struct Queue *queue) {
 		//pops off the head of the queue
 
@@ -267,4 +308,16 @@ struct ArrivalNode* popHead(struct Queue *queue) {
 	queue->front = (queue->front)->next;
 	return ret;
 }
-
+unsigned int countQueueSize(struct Queue *queue) {
+		unsigned int count = 0;
+		
+		struct ArrivalNode *current = queue->front;
+		
+		while(current != NULL) {
+				count++;
+				current = current->next;
+		}
+		
+		return count;
+	
+}
