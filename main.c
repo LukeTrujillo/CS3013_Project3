@@ -12,6 +12,8 @@
 
 #include <semaphore.h>
 
+#include "room_lock.c"
+
 // Supplied parameters
 unsigned int numTeams; 
 unsigned int numPirates;
@@ -173,7 +175,6 @@ void decide() {
 	}
 
 }
-
 unsigned int openRoom() {
 	
 	for(int x = 0; x < numTeams; x++) {
@@ -184,7 +185,6 @@ unsigned int openRoom() {
 	}
 	return 0;
 }
-
 void getFitted(int thread_id) {
 
 	pthread_mutex_unlock(&fittedLock);

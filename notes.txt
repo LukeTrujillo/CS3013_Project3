@@ -1,9 +1,21 @@
-only ninjas or pirates can access the room at a time.
+make all the threads
+set flag = 1
+
+void arrive:
+	arrivalTime = rand() % 24
+	spin loop until flag is equal to one
+	
+	sleep(arrivalTime) // this is done concurrently
+	
+	---- queue lock ------	
+	add to the appropriate queue
+
+	---- end of queue lock -----
+	//now we need to know which team to start with right now
 
 
-Costume room:
-> 2 - 4 costumes teams a day (one team per person) (costs 5 pieces per day per team)
-> 1 coin for each minute in room BUT if waiting for more than 30 mins then it is FREE
+	while(1) {
+		//if the ninjaLock is open
+	
 
-Goal: max profits which maintaining fairness
-
+	}
