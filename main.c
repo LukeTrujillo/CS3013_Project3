@@ -10,7 +10,7 @@
 
 #include <time.h>
 
-
+#include <semaphore.h>
 
 // Supplied parameters
 unsigned int numTeams; 
@@ -26,6 +26,7 @@ pthread_t *ninjas;
 
 // Functions
 void makeThreads();
+
 
 
 //use a linked list to maintain the detail of each entry
@@ -57,6 +58,12 @@ unsigned int start;
 
 struct ArrivalNode *pirateHead;
 struct ArrivalNode *ninjaHead;
+
+
+sem_t ninjaSem;
+sem_t pirateSem;
+
+pthread_mutex_t teamLock;
 
 
 pthread_mutex_t queueLock;
@@ -110,16 +117,21 @@ void *arrive(void *vargp) {
 	pthread_mutex_unlock(&queueLock);
 	
 	
-	while((isNinja(thread_id) && ninjaTurn) || (!isNinja(thread_id) && !ninjaTurn));
-
+	if(isNinja(thread_id))
+		sem_wait(&ninjaSem);
+	if(!isNinja(thread_id)) {
+		sem_wait(&pirateSem);
+	}
+		
 	pthread_mutex_lock(&fittedLock);
 	
 	while(!openRoom());
 	
 	if(isNinja(thread_id)) getFitted(popHead(&ninjaQueue)->thread_id);
 	else getFitted(popHead(&pirateQueue)->thread_id);
+	
+	decide();
 
-		
 	
 	return NULL;
 }
@@ -143,22 +155,22 @@ void decide() {
 				
 				
 				if(urgencyNinjaSize < urgencyPirateSize) {
-					ninjaTurn = 1;
+					printf("choose ninjas\n");
+					sem_post(&ninjaSem);
 				} else {
-					ninjaTurn = 0;
+					printf("choose pirates\n\n");
+					sem_post(&pirateSem);
 				}
 				
 				
 			} else {
-				ninjaTurn = 1;
+				printf("choose ninjas\n");
+				sem_post(&ninjaSem);
 			}
 	} else if(pirateSize >= numTeams) {
-		ninjaTurn = 0;
+		printf("choose pirates\n\n");
+		sem_post(&pirateSem);
 	}
-
-	
-	if(ninjaTurn == 0) printf("choose pirates\n\n");
-	else printf("choose ninjas\n");
 
 }
 
@@ -190,9 +202,6 @@ void getFitted(int thread_id) {
 		
 		money += time;
 	
-		decide();
-		
-		
 		printf("Opening up Team #%d\n", x);
 		//now create entry and charge the client
 			
@@ -243,6 +252,10 @@ void makeThreads() {
 	pthread_mutex_init(&accessLock, NULL);
 	pthread_mutex_init(&fittedLock, NULL);
 	pthread_mutex_init(&withhold_pirates, NULL);
+	pthread_mutex_init(&teamLock, NULL);
+	
+	sem_init(&ninjaSem, 0, numNinjas);
+	sem_init(&pirateSem, 0, numPirates);
 	
 	
 	printf("Making threads..\n");
@@ -256,7 +269,8 @@ void makeThreads() {
 	}
 	
 	gameClock = time(NULL); //start the timer for the game
-	start = 1;
+	start = 1;\
+	decide();
 	
 }
 unsigned int isNinja(int *thread_id) {
