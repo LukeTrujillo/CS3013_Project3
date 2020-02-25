@@ -94,6 +94,10 @@ unsigned long gameClock;
 
 unsigned int ninjaTurn;
 
+void room_lock_and_wait(room_lock_t*, enum Team);
+
+room_lock_t *roomLock;
+
 void *arrive(void *vargp) {
 	int arrival_time = rand() % 24;
 	
@@ -105,37 +109,59 @@ void *arrive(void *vargp) {
 	
 	pthread_mutex_lock(&queueLock);
 	
-	if(isNinja(thread_id)) {
-			printf("A ninja arrived at %d hours\n", arrival_time);
-			
-			addToQueue(&ninjaQueue, *thread_id, arrival_time);
+		if(isNinja(thread_id)) {
+				printf("A ninja arrived at %d hours\n", arrival_time);
+				
+				addToQueue(&ninjaQueue, *thread_id, arrival_time);
 
-			
-	} else {
-			printf("A pirate arrived at %d hours\n", arrival_time);
-			addToQueue(&pirateQueue, *thread_id, arrival_time);
+				
+		} else {
+				printf("A pirate arrived at %d hours\n", arrival_time);
+				addToQueue(&pirateQueue, *thread_id, arrival_time);
 
-	}	
+		}	
 	pthread_mutex_unlock(&queueLock);
-	
-	
-	if(isNinja(thread_id))
-		sem_wait(&ninjaSem);
-	if(!isNinja(thread_id)) {
-		sem_wait(&pirateSem);
-	}
-		
+
 	pthread_mutex_lock(&fittedLock);
 	
-	while(!openRoom());
-	
-	if(isNinja(thread_id)) getFitted(popHead(&ninjaQueue)->thread_id);
-	else getFitted(popHead(&pirateQueue)->thread_id);
-	
-	decide();
-
-	
+		while(atMaxOccupancy(roomLock));
+		
+		struct ArrivalNode *next;
+		
+		enum Team team;
+		
+		pthread_mutex_lock(&queueLock);
+			if(room_lock_will_accept(roomLock) == NINJAS || (room_lock_will_accept(roomLock) == NA && countQueueSize(&ninjaQueue) > 0)) {
+				next = popHead(&ninjaQueue);
+				team = NINJAS;
+			} else if(room_lock_will_accept(roomLock) == PIRATES || (room_lock_will_accept(roomLock) == NA && countQueueSize(&pirateQueue) > 0)) {
+				next = popHead(&pirateQueue);
+				team = PIRATES;
+			}
+		pthread_mutex_unlock(&queueLock);
+		
+		room_lock_and_wait(roomLock, team);
+		
 	return NULL;
+}
+
+void room_lock_and_wait(room_lock_t *lock, enum Team team) {
+	if(room_lock_will_accept(lock) == team) {
+		room_lock_acquire_lock(lock, team);
+		
+		pthread_mutex_unlock(&fittedLock);
+		
+		unsigned int changeTime = rand() % 24;
+		printf("Team #%d is going to change for %d seconds\n", team, changeTime);
+		sleep(changeTime);
+		printf("A Team #%d has exited the room\n", team);
+		
+		room_lock_release_lock(lock);
+	} else {
+		
+		pthread_mutex_unlock(&fittedLock);
+	}
+	
 }
 
 //This should choose whether or not you switch teams
@@ -175,40 +201,7 @@ void decide() {
 	}
 
 }
-unsigned int openRoom() {
-	
-	for(int x = 0; x < numTeams; x++) {
-		if(pthread_mutex_trylock(&costumeLock[x]) != 0) continue;
-		
-		pthread_mutex_unlock(&costumeLock[x]);
-		return 1;
-	}
-	return 0;
-}
-void getFitted(int thread_id) {
 
-	pthread_mutex_unlock(&fittedLock);
-
-	for(int x = 0; x < numTeams; x++) {
-		if(pthread_mutex_trylock(&costumeLock[x]) != 0) continue;
-	
-		
-		int time = rand() % 12;
-		printf("Thread ID %d is being fitted by Team #%d for %d seconds.\n", thread_id, x, time);
-		//choose the amount of time to be in the room
-	
-	
-		sleep(time);
-		
-		money += time;
-	
-		printf("Opening up Team #%d\n", x);
-		//now create entry and charge the client
-			
-		pthread_mutex_unlock(&costumeLock[x]);
-		break;
-	}
-}
 int main(int argc, char** argv) {
 	
 		srand(time(0));
@@ -240,11 +233,15 @@ int main(int argc, char** argv) {
 	
 }
 void makeThreads() {
+	
+	roomLock = malloc(sizeof(room_lock_t));
+	room_lock_init(roomLock, numTeams);
+	
 	if(pthread_mutex_init(&queueLock, NULL) != 0) {
 			printf("queueLock failed\n");
 	}
 	
-	for(int x = 0; x < numTeams; x++) {
+	/*for(int x = 0; x < numTeams; x++) {
 		if(pthread_mutex_init(&costumeLock[x], NULL) != 0) {
 			printf("num lock done failed\n");
 		}
@@ -255,8 +252,9 @@ void makeThreads() {
 	pthread_mutex_init(&teamLock, NULL);
 	
 	sem_init(&ninjaSem, 0, numNinjas);
-	sem_init(&pirateSem, 0, numPirates);
+	sem_init(&pirateSem, 0, numPirates);*/
 	
+	pthread_mutex_init(&fittedLock, NULL);
 	
 	printf("Making threads..\n");
 	
@@ -268,10 +266,7 @@ void makeThreads() {
 		pthread_create(&ninjas[x], NULL, arrive, (void *) &ninjas[x]);
 	}
 	
-	gameClock = time(NULL); //start the timer for the game
-	start = 1;\
-	decide();
-	
+	start = 1;
 }
 unsigned int isNinja(int *thread_id) {
 	

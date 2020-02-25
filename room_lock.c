@@ -4,11 +4,17 @@
 #include <time.h>
 #include <semaphore.h>
 
+enum Team {NINJAS, PIRATES, NA};
+
 typedef struct _room_lock_t {
 	int max;
 	int occupants;
 	sem_t room_lock;
 	sem_t lock;
+	
+	enum Team currentTeam;
+	enum Team nextTeam;
+	
 } room_lock_t;
 
 void room_lock_init(room_lock_t *rl, unsigned int teams) {
@@ -16,11 +22,41 @@ void room_lock_init(room_lock_t *rl, unsigned int teams) {
 	rl->occupants = 0;
 	sem_init(&rl->room_lock, 0, teams); // allow the number of teams to enter the room
 	sem_init(&rl->lock, 0, 1);
+	
+	rl->currentTeam = NA;
+	rl->nextTeam = NA;
 }
 
+void room_lock_change_team(room_lock_t *lock, enum Team attempt) {
+	sem_wait(&lock->lock);
+	
+		if(lock->nextTeam != NA) {
+			printf("Team #%d is already queued so the call to room_lock_change_team is ignored\n", lock->nextTeam);
+		} else if(attempt == lock->nextTeam) {
+			printf("Team #%d is already set to be the next team this room_lock_change_team is ignored\n", lock->nextTeam);
+		} else if(lock->nextTeam == NA) {
+			lock->nextTeam = attempt;
+			printf("Next team has been set to Team#%d\n", attempt);
+		}
+	
+	
+	sem_post(&lock->lock);
+}
 
-void room_lock_acquire_lock(room_lock_t *lock) {
+enum Team room_lock_will_accept(room_lock_t *lock) {
+	return lock->currentTeam; //will need to change later for dynamic switching
+}
+
+void room_lock_acquire_lock(room_lock_t *lock, enum Team attempt) {
 	sem_wait(&lock->lock); //only one thread at a time can enter here
+	
+	
+	if(lock->currentTeam == NA) {
+		lock->currentTeam = attempt;
+	}
+	
+	if(attempt != lock->currentTeam) { return; } 
+	
 	lock->occupants++;
 
 	if(lock->occupants > lock->max) {
@@ -37,6 +73,13 @@ void room_lock_release_lock(room_lock_t *lock) {
 	lock->occupants--;
 
 	if(lock->occupants == 0) {
+		
+		if(lock->nextTeam == NA) {
+			lock->currentTeam = lock->nextTeam;
+			lock->nextTeam = NA;
+			printf("The team for the room has been changed to team #%d\n", lock->currentTeam);
+		}
+		
 		sem_post(&lock->room_lock);
 	}
 	
