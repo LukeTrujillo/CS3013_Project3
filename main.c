@@ -21,6 +21,7 @@ unsigned int numPirates;
 unsigned int numNinjas;
 
 unsigned int money;
+unsigned int payVar = 0; //variable for testAndSet while paying
 
 
 // Holds the TID (Thread ID)
@@ -84,6 +85,7 @@ struct Queue ninjaQueue;
 unsigned int openRoom();
 void decide();
 unsigned int countQueueSize(struct Queue*);
+void pay(int amount);
 
 unsigned long gameClock;
 unsigned int earnings = 0;
@@ -144,8 +146,7 @@ void *arrive(void *vargp) {
 			
 		room_lock_and_wait(roomLock, next, team);
 
-
-		printf("\t\t\t\t\t=====] Earnings: $%d\n", earnings); 
+ 
 
 	return NULL;
 }
@@ -156,8 +157,9 @@ void room_lock_and_wait(room_lock_t *lock, struct ArrivalNode *node, enum Team t
 		
 		//pthread_mutex_unlock(&fittedLock);
 		
-		unsigned int changeTime = rand() % 5;
-		earnings += changeTime;
+		unsigned int changeTime = 1+rand() % 5; //TODO dont hardcode
+		if (node->arrivalTime < 30)
+			pay(changeTime);
 		
 		printf("Thread #%d on team #%d is going to change for %d seconds\n", node->thread_id, team, changeTime);
 		sleep(changeTime);
@@ -166,6 +168,22 @@ void room_lock_and_wait(room_lock_t *lock, struct ArrivalNode *node, enum Team t
 		room_lock_release_lock(lock);
 	}
 	
+}
+
+int testAndSet(int * target, int value) {
+	int oldvalue = *target;
+	*target = value;
+	return oldvalue;
+}
+
+void pay(int amount){
+	while (testAndSet(&payVar, 1) == 1){
+		;
+	}
+	earnings += amount;
+	printf("\t\t\t\t\t=====] Earnings: $%d\n", earnings);
+	testAndSet(&payVar, 0);
+	return;
 }
 
 int main(int argc, char** argv) {
