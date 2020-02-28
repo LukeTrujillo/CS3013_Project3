@@ -6,6 +6,13 @@
 
 enum Team {NINJAS, PIRATES, NA};
 
+struct ArrivalNode {
+		struct ArrivalNode *next;
+		unsigned int arrivalTime;
+		unsigned int thread_id;
+};
+
+
 typedef struct _room_lock_t {
 	int max;
 	int occupants;
@@ -22,9 +29,21 @@ void room_lock_init(room_lock_t *rl, unsigned int teams) {
 	rl->occupants = 0;
 	sem_init(&rl->room_lock, 0, teams); // allow the number of teams to enter the room
 	sem_init(&rl->lock, 0, 1);
+
+
+	srand(time(NULL));
 	
-	rl->currentTeam = NA;
-	rl->nextTeam = NA;
+	unsigned int choice = rand() % 2;
+	
+	if(choice) {
+		 rl->currentTeam = PIRATES;
+		 rl->nextTeam = NINJAS;
+	}
+	else {
+		 rl->currentTeam = NINJAS;
+		 rl->nextTeam = PIRATES;
+	}
+
 }
 
 void room_lock_change_team(room_lock_t *lock, enum Team attempt) {
@@ -50,21 +69,23 @@ enum Team room_lock_will_accept(room_lock_t *lock) {
 void room_lock_acquire_lock(room_lock_t *lock, enum Team attempt) {
 	sem_wait(&lock->lock); //only one thread at a time can enter here
 	
-	
 	if(lock->currentTeam == NA) {
 		lock->currentTeam = attempt;
 	}
 	
-	if(attempt != lock->currentTeam) { return; } 
+	if(attempt != lock->currentTeam) {
+		sem_post(&lock->lock);
+		return;
+	} 
 	
 	lock->occupants++;
 
 	if(lock->occupants > lock->max) {
 		printf("Max capacity for room achieved...all threads calling room_lock_acquire_room_lock() will be waiting\n");
 		sem_wait(&lock->room_lock);
+	} else {
+			printf("\tTeam #%d has entered the room.\n", attempt);
 	}
-	
-	printf("lock acquired occup %d", lock->occupants);
 	
 	sem_post(&lock->lock);
 }
@@ -74,16 +95,16 @@ void room_lock_release_lock(room_lock_t *lock) {
 
 	if(lock->occupants == 0) {
 		
-		if(lock->nextTeam == NA) {
+		if(lock->nextTeam != NA) {
 			lock->currentTeam = lock->nextTeam;
-			lock->nextTeam = NA;
+			lock->nextTeam = !lock->currentTeam;
 			printf("The team for the room has been changed to team #%d\n", lock->currentTeam);
 		}
 		
 		sem_post(&lock->room_lock);
 	}
 	
-	printf("lock released occupants: %d\n", lock->occupants);
+	printf("\tOne person left the room\n");
 
 	sem_post(&lock->lock);
 }
@@ -95,5 +116,5 @@ unsigned int atMaxOccupancy(room_lock_t *lock) {
 	max = lock->max;
 	sem_post(&lock->lock);
 
-	return max;
+	return max == lock->occupants;
 }
