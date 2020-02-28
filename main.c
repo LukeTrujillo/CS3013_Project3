@@ -100,13 +100,14 @@ void room_lock_and_wait(room_lock_t*, struct ArrivalNode*, enum Team);
 room_lock_t *roomLock;
 
 int getArrivalTime(int thread_id){
+	int arrivalTime = 0;
 	if (isNinja(thread_id)){
-		//something with ninjaArrivalTime	
+		arrivalTime = ninjaArrivalTime;	
 	}	
 	else {
-		//something with priateArrivalTime
+		arrivalTime = pirateArrivalTime;
 	}
-	return rand() % 24; //TODO actually get arrival time
+	return (rand() % (2 * arrivalTime - 2)) + 1; 
 }
 
 void *arrive(void *vargp) {
@@ -167,12 +168,14 @@ void *arrive(void *vargp) {
 }
 
 int getCostumeTime(int thread_id){
+	int costumeTime = 0;
 	if (isNinja(thread_id)){
-		//TODO something with ninjaCostumeTime
-	} else {
-		//TODO somethin with pirateCostumeTime
+		costumeTime = ninjaCostumeTime;	
+	}	
+	else {
+		costumeTime = pirateCostumeTime;
 	}
-	return 1+rand()%5; //TODO
+	return (rand() % (2 * costumeTime - 2)) + 1;
 }
 
 void room_lock_and_wait(room_lock_t *lock, struct ArrivalNode *node, enum Team team) {
