@@ -19,6 +19,10 @@
 unsigned int numTeams; 
 unsigned int numPirates;
 unsigned int numNinjas;
+unsigned int pirateCostumeTime;
+unsigned int ninjaCostumeTime;
+unsigned int pirateArrivalTime;
+unsigned int ninjaArrivalTime;
 
 unsigned int money;
 unsigned int payVar = 0; //variable for testAndSet while paying
@@ -95,14 +99,25 @@ void room_lock_and_wait(room_lock_t*, struct ArrivalNode*, enum Team);
 
 room_lock_t *roomLock;
 
+int getArrivalTime(int thread_id){
+	if (isNinja(thread_id)){
+		//something with ninjaArrivalTime	
+	}	
+	else {
+		//something with priateArrivalTime
+	}
+	return rand() % 24; //TODO actually get arrival time
+}
+
 void *arrive(void *vargp) {
-	int arrival_time = rand() % 24;
+	
+	int thread_id = *((int *) vargp);
+	int arrival_time = getArrivalTime(thread_id);
 	
 	while(!start);
 	
 	sleep(arrival_time);
 	
-	int thread_id = *((int *) vargp);
 	
 	pthread_mutex_lock(&queueLock);
 	
@@ -151,13 +166,22 @@ void *arrive(void *vargp) {
 	return NULL;
 }
 
+int getCostumeTime(int thread_id){
+	if (isNinja(thread_id)){
+		//TODO something with ninjaCostumeTime
+	} else {
+		//TODO somethin with pirateCostumeTime
+	}
+	return 1+rand()%5; //TODO
+}
+
 void room_lock_and_wait(room_lock_t *lock, struct ArrivalNode *node, enum Team team) {
 	if(room_lock_will_accept(lock) == team || room_lock_will_accept(lock) == NA) {
 		room_lock_acquire_lock(lock, team);
 		
 		//pthread_mutex_unlock(&fittedLock);
 		
-		unsigned int changeTime = 1+rand() % 5; //TODO dont hardcode
+		unsigned int changeTime = getCostumeTime(node->thread_id);
 		if (node->arrivalTime < 30)
 			pay(changeTime);
 		
@@ -194,7 +218,11 @@ int main(int argc, char** argv) {
 		numTeams = atoi(argv[1]);
 		numPirates = atoi(argv[2]);
 		numNinjas = atoi(argv[3]);
-		
+		pirateCostumeTime = atoi(argv[4]);
+		ninjaCostumeTime = atoi(argv[5]);
+		pirateArrivalTime = atoi(argv[6]);
+		ninjaArrivalTime = atoi(argv[7]);
+
 		start = 0;
 		
 		costumeLock = malloc(sizeof(pthread_mutex_t) * numTeams);
