@@ -4,7 +4,7 @@
 #include <time.h>
 #include <semaphore.h>
 
-enum Team {NINJAS, PIRATES, NA};
+enum Team {NINJAS, PIRATES};
 
 struct ArrivalNode {
 		struct ArrivalNode *next;
@@ -12,24 +12,67 @@ struct ArrivalNode {
 		unsigned int thread_id;
 };
 
+struct CostumeTeam {
+	unsigned int serving;
+	unsigned int currentEntity;
+	
+	unsigned teamNumber;
+	unsigned int timeSpentBusy;
+};
+
+struct Visit {
+	struct ArrivalNode *arrival;
+	
+	unsigned int timeSpent;
+	unsigned int entity;
+	
+	enum Team entityTeam;
+
+	struct CostumeTeam *servicedBy;
+	struct Visit *next;
+};
+
 
 typedef struct _room_lock_t {
 	int max;
-	int occupants;
+	
 	sem_t room_lock;
 	sem_t lock;
 	
 	enum Team currentTeam;
-	enum Team nextTeam;
+	unsigned int swapTrigger;
+	
+	struct CostumeTeam *costumeTeams;
+	struct Visit *head;
 	
 } room_lock_t;
 
+
+unsigned int getOccupancy(room_lock_t *);
+unsigned int atMaxOccupancy(room_lock_t*);
+void occupy(room_lock_t*, struct Visit*);
+void exitRoom(room_lock_t*, struct Visit *);
+
 void room_lock_init(room_lock_t *rl, unsigned int teams) {
 	rl->max = teams;
-	rl->occupants = 0;
 	sem_init(&rl->room_lock, 0, teams); // allow the number of teams to enter the room
 	sem_init(&rl->lock, 0, 1);
-
+	
+	printf("here\n");
+	
+	
+	rl->costumeTeams = ((struct CostumeTeam*) malloc(sizeof(struct CostumeTeam) * teams));
+	rl->swapTrigger = 0;
+	printf("here\n");
+	
+	
+	for(int x = 0; x < teams; x++) {
+		rl->costumeTeams[x].serving = 0;
+		rl->costumeTeams[x].teamNumber = x;
+		rl->costumeTeams[x].timeSpentBusy = 0;		
+	}
+	
+	rl->head = NULL;
 
 	srand(time(NULL));
 	
@@ -37,84 +80,126 @@ void room_lock_init(room_lock_t *rl, unsigned int teams) {
 	
 	if(choice) {
 		 rl->currentTeam = PIRATES;
-		 rl->nextTeam = NINJAS;
 	}
 	else {
 		 rl->currentTeam = NINJAS;
-		 rl->nextTeam = PIRATES;
 	}
+	printf("here3\n");
+	
 
 }
 
-void room_lock_change_team(room_lock_t *lock, enum Team attempt) {
+
+unsigned int room_lock_will_accept(room_lock_t *lock, enum Team team) {
+	return !atMaxOccupancy(lock) && ((team == lock->currentTeam && lock->swapTrigger == 0) || (getOccupancy(lock) == 0 && lock->swapTrigger == 1 && lock->currentTeam != team)); //will need to change later for dynamic switching
+}
+
+
+void room_lock_acquire_lock(room_lock_t *lock, struct Visit *visit) {
 	sem_wait(&lock->lock);
-	
-		if(lock->nextTeam != NA) {
-			printf("Team #%d is already queued so the call to room_lock_change_team is ignored\n", lock->nextTeam);
-		} else if(attempt == lock->nextTeam) {
-			printf("Team #%d is already set to be the next team this room_lock_change_team is ignored\n", lock->nextTeam);
-		} else if(lock->nextTeam == NA) {
-			lock->nextTeam = attempt;
-			printf("Next team has been set to Team#%d\n", attempt);
-		}
-	
-	
-	sem_post(&lock->lock);
-}
 
-enum Team room_lock_will_accept(room_lock_t *lock) {
-	return lock->currentTeam; //will need to change later for dynamic switching
-}
-
-void room_lock_acquire_lock(room_lock_t *lock, enum Team attempt) {
-	sem_wait(&lock->lock); //only one thread at a time can enter here
-	
-	if(lock->currentTeam == NA) {
-		lock->currentTeam = attempt;
-	}
-	
-	if(attempt != lock->currentTeam) {
+	if(visit->entityTeam != lock->currentTeam || lock->swapTrigger == 1) { //it should not wait for the lock
+		//we can check if the thing would finish before
+		
 		sem_post(&lock->lock);
 		return;
-	} 
-	
-	lock->occupants++;
-
-	if(lock->occupants > lock->max) {
-		printf("Max capacity for room achieved...all threads calling room_lock_acquire_room_lock() will be waiting\n");
-		sem_wait(&lock->room_lock);
-	} else {
-			printf("\tTeam #%d has entered the room.\n", attempt);
 	}
+	
+	//it should wait for the lock
+
+	if(atMaxOccupancy(lock)) {
+		printf("Max capacity for room achieved...all threads calling room_lock_acquire_room_lock() will be waiting\n");
+		
+		sem_wait(&lock->room_lock);
+	}
+	
+	occupy(lock, visit);
 	
 	sem_post(&lock->lock);
 }
-void room_lock_release_lock(room_lock_t *lock) {
-	sem_wait(&lock->lock); //only one thread can enter here
-	lock->occupants--;
 
-	if(lock->occupants == 0) {
+void room_lock_set_team(room_lock_t *lock, enum Team team) {
+	sem_wait(&lock->lock);
 		
-		if(lock->nextTeam != NA) {
-			lock->currentTeam = lock->nextTeam;
-			lock->nextTeam = !lock->currentTeam;
-			printf("The team for the room has been changed to team #%d\n", lock->currentTeam);
+	//	if(lock->swapTrigger == 1 && lock->currentTeam == team) lock->swapTrigger = 0;
+	
+		
+		if(lock->currentTeam != team) { 
+			lock->swapTrigger = 1;
 		}
+	sem_post(&lock->lock);
+}
+
+void room_lock_release_lock(room_lock_t *lock, struct Visit *visit) {
+	sem_wait(&lock->lock); //only one thread can enter here
+
+	exitRoom(lock, visit);
+	
+	if(getOccupancy(lock) == 0 && lock->swapTrigger == 1) {
 		
-		sem_post(&lock->room_lock);
+			printf("hdfsdfsdfere\n");
+			
+			lock->swapTrigger = 0;
+			lock->currentTeam = !lock->currentTeam;
+			
+			printf("THE TEAM ALLOWED HAS CHANGED FROM TEAM #%d TO TEAM #%d\n", !lock->currentTeam, lock->currentTeam);
 	}
 	
-	printf("\tOne person left the room\n");
+	printf("\tTeam #%d member #%d left the room after being serviced by costume team #%d\n", visit->entityTeam, visit->entity, visit->servicedBy->teamNumber);
 
 	sem_post(&lock->lock);
 }
 
 unsigned int atMaxOccupancy(room_lock_t *lock) {
-	unsigned int max;
+	return lock->max <= getOccupancy(lock);
+}
+unsigned int getOccupancy(room_lock_t *lock) {
+	unsigned int occupants = 0;
+	for(int x = 0; x < lock->max; x++) {
+		struct CostumeTeam *team = &lock->costumeTeams[x];
+		
+		if(team->serving == 1) occupants++;
+	}
+	
+	return occupants;
+}
 
-	sem_wait(&lock->lock); //only one thread at a time
-	max = lock->max;
-	sem_post(&lock->lock);
-
-	return max == lock->occupants;
+void occupy(room_lock_t *lock, struct Visit *visit) {
+	if(!atMaxOccupancy(lock)) {
+		
+		unsigned int occupants = 0;
+		
+		for(int x = 0; x < lock->max; x++) {
+			struct CostumeTeam *team = &lock->costumeTeams[x];
+		
+		
+			if(team->serving == 0) {
+				team->serving = 1;
+				
+				team->currentEntity = visit->entity;
+				team->timeSpentBusy += visit->timeSpent;
+				
+				visit->servicedBy = team;
+				
+				struct Visit *node = lock->head;
+				
+				if(lock->head == NULL) { lock->head = visit; }
+				else {
+						while(node->next != NULL) {node = node->next;}
+					
+						node->next = visit;
+				} 
+				
+				printf("#%d on team %d is being serviced for %d minutes by costume team %d\n", visit->entity, visit->entityTeam, visit->timeSpent, visit->servicedBy->teamNumber);
+				
+				return;
+			}
+		
+		}
+		
+	}
+}
+void exitRoom(room_lock_t *lock, struct Visit *visit) {
+	
+	visit->servicedBy->serving = 0;
 }

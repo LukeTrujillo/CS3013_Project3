@@ -33,17 +33,6 @@ void makeThreads();
 void printQueues();
 
 
-//use a linked list to maintain the detail of each entry
-struct Visit {
-	unsigned int entityID;
-
-	unsigned int entryTime;
-	unsigned int exitTime;
-	
-	//... mas aqui luego
-};
-
-
 struct Queue { 
     struct ArrivalNode *front, *rear; 
 }; 
@@ -93,16 +82,26 @@ void room_lock_and_wait(room_lock_t*, struct ArrivalNode*, enum Team);
 
 room_lock_t *roomLock;
 
+
+
+void think();
+
 void *arrive(void *vargp) {
 	int arrival_time = rand() % 24;
 	
 	while(!start);
 	
 	sleep(arrival_time);
+
+	
+	if(gameClock < arrival_time) {
+			gameClock = arrival_time;
+	}
 	
 	int thread_id = *((int *) vargp);
 	
 	pthread_mutex_lock(&queueLock);
+	
 	
 		if(isNinja(thread_id)) {
 				printf("A ninja arrived at %d hours\n", arrival_time);
@@ -116,61 +115,81 @@ void *arrive(void *vargp) {
 				
 		}	
 		
-			printQueues();
+
+			
+			
 	pthread_mutex_unlock(&queueLock);
 
-//	pthread_mutex_lock(&fittedLock);
+	pthread_mutex_lock(&fittedLock);
 	
-		while(atMaxOccupancy(roomLock));
-		
+		while(atMaxOccupancy(roomLock) && countQueueSize(&ninjaQueue) > 0 && countQueueSize(&pirateQueue) > 0);
 		struct ArrivalNode *next = NULL;
 		
-		enum Team team = NA;
-		
-			printQueues();
+		enum Team team;
 			
 			while(next == NULL) {
+				
 					
 				pthread_mutex_lock(&queueLock);
-					if(room_lock_will_accept(roomLock) == NINJAS && countQueueSize(&ninjaQueue) > 0) {
+					if(room_lock_will_accept(roomLock, NINJAS) && countQueueSize(&ninjaQueue) > 0) {
+					
 						next = popHead(&ninjaQueue);
 						team = NINJAS;
-					} else if(room_lock_will_accept(roomLock) == PIRATES && countQueueSize(&pirateQueue) > 0) {
+						
+							
+			printQueues();
+					} else if(room_lock_will_accept(roomLock,PIRATES) && countQueueSize(&pirateQueue) > 0) {
 						next = popHead(&pirateQueue);
 						team = PIRATES;
 					}	
 				pthread_mutex_unlock(&queueLock);
 			}
 			
-		room_lock_and_wait(roomLock, next, team);
-
-
+			printQueues();
+			room_lock_and_wait(roomLock, next, team);
+			
 		printf("\t\t\t\t\t=====] Earnings: $%d\n", earnings); 
 
 	return NULL;
 }
 
 void room_lock_and_wait(room_lock_t *lock, struct ArrivalNode *node, enum Team team) {
-	if(room_lock_will_accept(lock) == team || room_lock_will_accept(lock) == NA) {
-		room_lock_acquire_lock(lock, team);
+	while(!room_lock_will_accept(lock, team));
+		pthread_mutex_unlock(&fittedLock);
 		
-		//pthread_mutex_unlock(&fittedLock);
+		unsigned int changeTime = rand() % 5 + 1;
 		
-		unsigned int changeTime = rand() % 5;
+		struct Visit *visit = (struct Visit*) malloc(sizeof(struct Visit));
+		
+		visit->arrival = node;
+		visit->timeSpent = changeTime;
+		visit->entity = node->thread_id;
+		
+		if(isNinja(node->thread_id)) { visit->entityTeam = NINJAS;}
+		else visit->entityTeam = PIRATES;
+		
+		visit->servicedBy = NULL;
+		visit->next = NULL;
+		
+		
+		room_lock_acquire_lock(lock, visit);
+		
 		earnings += changeTime;
-		
-		printf("Thread #%d on team #%d is going to change for %d seconds\n", node->thread_id, team, changeTime);
+	
 		sleep(changeTime);
-		printf("A Team #%d has exited the room\n", team);
 		
-		room_lock_release_lock(lock);
-	}
+		if(gameClock < changeTime + node->arrivalTime) { gameClock = changeTime + node->arrivalTime; }
+		room_lock_release_lock(lock, visit);
+		
+		
+		think();
+	
 	
 }
 
 int main(int argc, char** argv) {
 	
-		srand(time(0));
+		srand(1);
 		money = 0;
 		
 		numTeams = atoi(argv[1]);
@@ -195,7 +214,8 @@ int main(int argc, char** argv) {
 	
 }
 void makeThreads() {
-	
+
+
 	roomLock = malloc(sizeof(room_lock_t));
 	room_lock_init(roomLock, numTeams);
 	
@@ -218,9 +238,40 @@ void makeThreads() {
 		*arg = x + numPirates;
 		pthread_create(&ninjas[x], NULL, arrive, (void *) arg);
 	}
+
 	
 	start = 1;
 }
+
+void think() {
+
+	
+		unsigned int threshold = 20;
+		
+		unsigned int nQ = countQueueSize(&ninjaQueue);
+		unsigned int pQ = countQueueSize(&pirateQueue);
+		
+		if(nQ == 0 && pQ != 0) room_lock_set_team(roomLock, PIRATES);
+		
+		if(pQ == 0 && nQ != 0) room_lock_set_team(roomLock, NINJAS);
+		
+		
+		if(nQ > 0 && gameClock - ninjaQueue.front->arrivalTime > threshold) {
+			room_lock_set_team(roomLock, NINJAS);
+		} else 	if(pQ > 0 && gameClock - pirateQueue.front->arrivalTime > threshold) {
+			room_lock_set_team(roomLock, PIRATES);
+		}
+		
+		if(pQ > 0 && ((nQ < 4 && pQ > 4) || (pQ - nQ > 4))) {
+			room_lock_set_team(roomLock, PIRATES);
+		} else if(nQ > 0 && ((nQ > 4 && pQ < 4) || (pQ - nQ > 4))) {
+			room_lock_set_team(roomLock, NINJAS);
+		} 
+			
+			
+	
+}
+
 unsigned int isNinja(int thread_id) {
 	return numPirates <= thread_id;
 }
@@ -286,7 +337,14 @@ unsigned int countQueueSize(struct Queue *queue) {
 
 void printQueues() {
 		
-		printf("\n\nRoom occupancy (max %d): %d Allowed team: %d Next team: %d\n", roomLock->max, roomLock->occupants, roomLock->currentTeam, roomLock->nextTeam);
+		printf("\n\nRoom occupancy (max %d): %d Allowed team: %d Swap Flag: %d\n", roomLock->max, getOccupancy(roomLock), roomLock->currentTeam, roomLock->swapTrigger);
+		
+		for(int x = 0; x < numTeams; x++) {
+				printf("%d ", roomLock->costumeTeams[x].serving);
+			
+		}
+		printf("\n");
+		
 		
 		struct ArrivalNode *p = ninjaQueue.front;
 		
