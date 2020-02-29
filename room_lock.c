@@ -58,12 +58,9 @@ void room_lock_init(room_lock_t *rl, unsigned int teams) {
 	sem_init(&rl->room_lock, 0, teams); // allow the number of teams to enter the room
 	sem_init(&rl->lock, 0, 1);
 	
-	printf("here\n");
-	
 	
 	rl->costumeTeams = ((struct CostumeTeam*) malloc(sizeof(struct CostumeTeam) * teams));
 	rl->swapTrigger = 0;
-	printf("here\n");
 	
 	
 	for(int x = 0; x < teams; x++) {
@@ -84,8 +81,7 @@ void room_lock_init(room_lock_t *rl, unsigned int teams) {
 	else {
 		 rl->currentTeam = NINJAS;
 	}
-	printf("here3\n");
-	
+
 
 }
 
@@ -98,7 +94,7 @@ unsigned int room_lock_will_accept(room_lock_t *lock, enum Team team) {
 void room_lock_acquire_lock(room_lock_t *lock, struct Visit *visit) {
 	sem_wait(&lock->lock);
 
-	if(visit->entityTeam != lock->currentTeam || lock->swapTrigger == 1) { //it should not wait for the lock
+	if(visit->entityTeam != lock->currentTeam) { //it should not wait for the lock
 		//we can check if the thing would finish before
 		
 		sem_post(&lock->lock);
@@ -112,16 +108,15 @@ void room_lock_acquire_lock(room_lock_t *lock, struct Visit *visit) {
 		
 		sem_wait(&lock->room_lock);
 	}
+	sem_post(&lock->lock);
 	
 	occupy(lock, visit);
-	
-	sem_post(&lock->lock);
 }
 
 void room_lock_set_team(room_lock_t *lock, enum Team team) {
 	sem_wait(&lock->lock);
 		
-	//	if(lock->swapTrigger == 1 && lock->currentTeam == team) lock->swapTrigger = 0;
+		if(lock->swapTrigger == 1 && lock->currentTeam == team) lock->swapTrigger = 0;
 	
 		
 		if(lock->currentTeam != team) { 
@@ -131,21 +126,21 @@ void room_lock_set_team(room_lock_t *lock, enum Team team) {
 }
 
 void room_lock_release_lock(room_lock_t *lock, struct Visit *visit) {
+	
 	sem_wait(&lock->lock); //only one thread can enter here
 
 	exitRoom(lock, visit);
 	
 	if(getOccupancy(lock) == 0 && lock->swapTrigger == 1) {
 		
-			printf("hdfsdfsdfere\n");
-			
+
 			lock->swapTrigger = 0;
 			lock->currentTeam = !lock->currentTeam;
 			
-			printf("THE TEAM ALLOWED HAS CHANGED FROM TEAM #%d TO TEAM #%d\n", !lock->currentTeam, lock->currentTeam);
+			//printf("THE TEAM ALLOWED HAS CHANGED TO TEAM #%d\n", lock->currentTeam);
 	}
 	
-	printf("\tTeam #%d member #%d left the room after being serviced by costume team #%d\n", visit->entityTeam, visit->entity, visit->servicedBy->teamNumber);
+	//printf("\tTeam #%d member #%d left the room after being serviced by costume team #%d\n", visit->entityTeam, visit->entity, visit->servicedBy->teamNumber);
 
 	sem_post(&lock->lock);
 }
@@ -155,7 +150,9 @@ unsigned int atMaxOccupancy(room_lock_t *lock) {
 }
 unsigned int getOccupancy(room_lock_t *lock) {
 	unsigned int occupants = 0;
-	for(int x = 0; x < lock->max; x++) {
+	
+	unsigned int max = lock->max;
+	for(int x = 0; x < max; x++) {
 		struct CostumeTeam *team = &lock->costumeTeams[x];
 		
 		if(team->serving == 1) occupants++;
@@ -165,6 +162,7 @@ unsigned int getOccupancy(room_lock_t *lock) {
 }
 
 void occupy(room_lock_t *lock, struct Visit *visit) {
+	sem_wait(&lock->lock); //only one thread can enter here
 	if(!atMaxOccupancy(lock)) {
 		
 		unsigned int occupants = 0;
@@ -190,16 +188,37 @@ void occupy(room_lock_t *lock, struct Visit *visit) {
 						node->next = visit;
 				} 
 				
-				printf("#%d on team %d is being serviced for %d minutes by costume team %d\n", visit->entity, visit->entityTeam, visit->timeSpent, visit->servicedBy->teamNumber);
+		
+				if(visit->entityTeam == PIRATES) {
+					printf("Pirate %d entered the shop with team %d\n", visit->entity, visit->servicedBy->teamNumber);	
+				} else {
+					printf("Ninja %d entered the shop with team %d\n", visit->entity, visit->servicedBy->teamNumber);		
+				}
 				
-				return;
+				
+				break;
 			}
 		
 		}
 		
+		if(visit->servicedBy == NULL) {
+			//printf("called again -- \n");
+				occupy(lock, visit);
+		}
+		
+		
 	}
+	sem_post(&lock->lock); //only one thread can enter here
 }
 void exitRoom(room_lock_t *lock, struct Visit *visit) {
 	
-	visit->servicedBy->serving = 0;
+	if(visit->servicedBy != NULL) {
+		if(visit->entityTeam == PIRATES) {
+			printf("Pirate %d exit the shop with team %d\n", visit->entity, visit->servicedBy->teamNumber);	
+		} else {
+			printf("Ninja %d exit the shop with team %d\n", visit->entity, visit->servicedBy->teamNumber);		
+		}
+		
+		visit->servicedBy->serving = 0;
+	}
 }
