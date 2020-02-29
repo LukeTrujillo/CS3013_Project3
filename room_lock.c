@@ -104,7 +104,7 @@ void room_lock_acquire_lock(room_lock_t *lock, struct Visit *visit) {
 	//it should wait for the lock
 
 	if(atMaxOccupancy(lock)) {
-		printf("Max capacity for room achieved...all threads calling room_lock_acquire_room_lock() will be waiting\n");
+		//printf("Max capacity for room achieved...all threads calling room_lock_acquire_room_lock() will be waiting\n");
 		
 		sem_wait(&lock->room_lock);
 	}

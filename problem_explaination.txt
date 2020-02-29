@@ -1,0 +1,126 @@
+This output was caused by running ./main 2 10 10 5 5 5 5 1 and shows a synchronized multi-threading system.
+
+Pirate 0 entered the shop with team 0
+Pirate 6 entered the shop with team 1
+Pirate 6 exit the shop with team 1
+Pirate 4 entered the shop with team 1
+Pirate 4 exit the shop with team 1
+Pirate 1 entered the shop with team 1
+Pirate 0 exit the shop with team 0
+Pirate 9 entered the shop with team 0
+Pirate 1 exit the shop with team 1
+Pirate 7 entered the shop with team 1
+Pirate 7 exit the shop with team 1
+Pirate 2 entered the shop with team 1
+Pirate 9 exit the shop with team 0
+Pirate 1 entered the shop with team 0
+Pirate 2 exit the shop with team 1
+Pirate 3 entered the shop with team 1
+Pirate 3 exit the shop with team 1
+Pirate 4 entered the shop with team 1
+Pirate 1 exit the shop with team 0
+Pirate 5 entered the shop with team 0
+Pirate 4 exit the shop with team 1
+Pirate 8 entered the shop with team 1
+Pirate 5 exit the shop with team 0
+Pirate 1 entered the shop with team 0
+Pirate 1 exit the shop with team 0
+Pirate 10 entered the shop with team 0
+Pirate 8 exit the shop with team 1
+Pirate 10 exit the shop with team 0
+Ninja 14 entered the shop with team 0
+Ninja 15 entered the shop with team 1
+Ninja 14 exit the shop with team 0
+Ninja 15 exit the shop with team 1
+Pirate 1 entered the shop with team 0
+Pirate 1 exit the shop with team 0
+Ninja 19 entered the shop with team 0
+Ninja 18 entered the shop with team 1
+Ninja 18 exit the shop with team 1
+Ninja 14 entered the shop with team 1
+Ninja 14 exit the shop with team 1
+Ninja 16 entered the shop with team 1
+Ninja 19 exit the shop with team 0
+Ninja 17 entered the shop with team 0
+Ninja 16 exit the shop with team 1
+Ninja 17 exit the shop with team 0
+Ninja 18 entered the shop with team 0
+Ninja 17 entered the shop with team 1
+Ninja 18 exit the shop with team 0
+Ninja 17 exit the shop with team 1
+
+
+ -- End of Simulation --
+
+Ninja 0:
+	Visit 1: Waited for 1 minutes and was in the shop for 6 minutes
+	Total # of visits: 2. Cost for person: 6
+Ninja 1:
+	Visit 1: Waited for 3 minutes and was in the shop for 4 minutes
+	Visit 2: Waited for 2 minutes and was in the shop for 7 minutes
+	Visit 3: Waited for 3 minutes and was in the shop for 4 minutes
+	Visit 4: Waited for 8 minutes and was in the shop for 2 minutes
+	Total # of visits: 5. Cost for person: 17
+Ninja 2:
+	Visit 1: Waited for 4 minutes and was in the shop for 3 minutes
+	Total # of visits: 2. Cost for person: 3
+Ninja 3:
+	Visit 1: Waited for 5 minutes and was in the shop for 2 minutes
+	Total # of visits: 2. Cost for person: 2
+Ninja 4:
+	Visit 1: Waited for 2 minutes and was in the shop for 3 minutes
+	Visit 2: Waited for 1 minutes and was in the shop for 8 minutes
+	Total # of visits: 3. Cost for person: 11
+Ninja 5:
+	Visit 1: Waited for 5 minutes and was in the shop for 6 minutes
+	Total # of visits: 2. Cost for person: 6
+Ninja 6:
+	Visit 1: Waited for 1 minutes and was in the shop for 2 minutes
+	Total # of visits: 2. Cost for person: 2
+Ninja 7:
+	Visit 1: Waited for 4 minutes and was in the shop for 2 minutes
+	Total # of visits: 2. Cost for person: 2
+Ninja 8:
+	Visit 1: Waited for 7 minutes and was in the shop for 8 minutes
+	Total # of visits: 2. Cost for person: 8
+Ninja 9:
+	Visit 1: Waited for 2 minutes and was in the shop for 7 minutes
+	Total # of visits: 2. Cost for person: 7
+The total for Ninjas was 64
+Pirates 10:
+	Visit 1: Waited for 8 minutes and was in the shop for 4 minutes
+	Total # of visits: 2. Cost for person: 4
+Pirates 11:
+	Total # of visits: 1. Cost for person: 0
+Pirates 12:
+	Total # of visits: 1. Cost for person: 0
+Pirates 13:
+	Total # of visits: 1. Cost for person: 0
+Pirates 14:
+	Visit 1: Waited for 1 minutes and was in the shop for 5 minutes
+	Visit 2: Waited for 3 minutes and was in the shop for 1 minutes
+	Total # of visits: 3. Cost for person: 6
+Pirates 15:
+	Visit 1: Waited for 2 minutes and was in the shop for 5 minutes
+	Total # of visits: 2. Cost for person: 5
+Pirates 16:
+	Visit 1: Waited for 5 minutes and was in the shop for 6 minutes
+	Total # of visits: 2. Cost for person: 6
+Pirates 17:
+	Visit 1: Waited for 7 minutes and was in the shop for 6 minutes
+	Total # of visits: 2. Cost for person: 6
+Pirates 18:
+	Visit 1: Waited for 1 minutes and was in the shop for 2 minutes
+	Visit 2: Waited for 8 minutes and was in the shop for 3 minutes
+	Total # of visits: 3. Cost for person: 5
+Pirates 19:
+	Visit 1: Waited for 4 minutes and was in the shop for 4 minutes
+	Total # of visits: 2. Cost for person: 4
+The total for Pirates was 36
+
+Expenses for employing the team is 10
+Team 0 was busy for 54 minutes 
+Team 1 was busy for 49 minutes 
+Gross revenue is 238 gold pieces
+Gold per visit: 10
+Total revenue: 228

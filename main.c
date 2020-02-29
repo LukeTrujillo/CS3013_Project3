@@ -19,11 +19,16 @@
 unsigned int numTeams; 
 unsigned int numPirates;
 unsigned int numNinjas;
+unsigned int pirateCostumeTime;
+unsigned int ninjaCostumeTime;
+unsigned int pirateArrivalTime;
+unsigned int ninjaArrivalTime;
 
 unsigned int oP;
 unsigned int oN;
 
 unsigned int money;
+unsigned int payVar = 0; //variable for testAndSet while paying
 
 
 // Holds the TID (Thread ID)
@@ -76,6 +81,7 @@ struct Queue ninjaQueue;
 unsigned int openRoom();
 void decide();
 unsigned int countQueueSize(struct Queue*);
+void pay(int amount);
 
 unsigned long gameClock;
 unsigned int earnings = 0;
@@ -91,9 +97,22 @@ unsigned int addOn = 0;
 
 void think();
 
+int getArrivalTime(int thread_id){
+	int arrivalTime = 0;
+	if (isNinja(thread_id)){
+		arrivalTime = ninjaArrivalTime;	
+	}	
+	else {
+		arrivalTime = pirateArrivalTime;
+	}
+	return (rand() % (2 * arrivalTime - 2)) + 1; 
+}
+
 void *arrive(void *vargp) {
-	int arrival_time = rand() % 10 + 1;
-	
+
+	int thread_id = *((int *) vargp);
+	int arrival_time = getArrivalTime(thread_id);
+
 	while(!start);
 	
 	sleep(arrival_time);
@@ -104,7 +123,6 @@ void *arrive(void *vargp) {
 	}
 	
 	
-	int thread_id = *((int *) vargp);
 	
 	pthread_mutex_lock(&queueLock);
 	
@@ -153,23 +171,37 @@ void *arrive(void *vargp) {
 				
 			}
 			
-			//printQueues();
 			pthread_mutex_unlock(&fittedLock);
 			
 			room_lock_and_wait(roomLock, next, team);
 			
-		
+
 
 	return NULL;
 }
 int ret = 100;
 
+int getCostumeTime(int thread_id){
+	int costumeTime = 0;
+	if (isNinja(thread_id)){
+		costumeTime = ninjaCostumeTime;	
+	}	
+	else {
+		costumeTime = pirateCostumeTime;
+	}
+	return (rand() % (2 * costumeTime - 2)) + 1;
+}
+
 void room_lock_and_wait(room_lock_t *lock, struct ArrivalNode *node, enum Team team) {
 	while(!room_lock_will_accept(lock, team));
 		
-		unsigned int changeTime = rand() % 5 + 1;
-		
+
 		struct Visit *visit = (struct Visit*) malloc(sizeof(struct Visit));
+
+		unsigned int changeTime = getCostumeTime(node->thread_id);
+		if (node->arrivalTime < 30)
+			pay(changeTime);
+
 		
 		visit->arrival = node;
 		visit->timeSpent = changeTime;
@@ -221,6 +253,21 @@ void room_lock_and_wait(room_lock_t *lock, struct ArrivalNode *node, enum Team t
 		pthread_exit(NULL);
 }
 
+int testAndSet(int * target, int value) {
+	int oldvalue = *target;
+	*target = value;
+	return oldvalue;
+}
+
+void pay(int amount){
+	while (testAndSet(&payVar, 1) == 1){
+		;
+	}
+	earnings += amount;
+	testAndSet(&payVar, 0);
+	return;
+}
+
 int main(int argc, char** argv) {
 	
 		srand(time(NULL));
@@ -233,6 +280,12 @@ int main(int argc, char** argv) {
 		oP = numPirates;
 		oN = numNinjas;
 		
+
+		pirateCostumeTime = atoi(argv[4]);
+		ninjaCostumeTime = atoi(argv[5]);
+		pirateArrivalTime = atoi(argv[6]);
+		ninjaArrivalTime = atoi(argv[7]);
+
 		start = 0;
 		
 		costumeLock = malloc(sizeof(pthread_mutex_t) * numTeams);
@@ -296,7 +349,7 @@ int main(int argc, char** argv) {
 		printf("Expenses for employing the team is %d\n", numTeams * 5);
 		
 		for(int x = 0; x < numTeams; x++) {
-			printf("Team %d was busy for %d minutes and free for %d minutes\n", x, roomLock->costumeTeams[x].timeSpentBusy, (int) (gameClock - roomLock->costumeTeams[x].timeSpentBusy));
+			printf("Team %d was busy for %d minutes \n", x, roomLock->costumeTeams[x].timeSpentBusy);
 		}
 		
 		printf("Gross revenue is %d gold pieces\n", earnings);
@@ -322,7 +375,6 @@ void makeThreads() {
 	
 	pthread_mutex_init(&fittedLock, NULL);
 	
-	printf("Making threads..\n");
 	
 	for(int x = 0; x < numPirates; x++) {
 		int *arg = malloc(sizeof(int));
