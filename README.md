@@ -1,28 +1,22 @@
 # CS3013_Project3
 
+To compile this program, use the command `make`. This will create an executable called `main`
 
-Notes:
+To run this program, use the command `./main teams pirates ninjas PCTime NCTime PATime NATime` where:
+`teams` is the number of costuming teams (min. 2, max. 4).
+`pirates` is the number of pirates (10–50).
+`ninjas` is the number of ninjas (10–50).
+`PCTime` is the average costuming time of a pirate. This is the average amount of time (in execution seconds)
+they spend in the costume shop.
+`NCTime` is the average costuming time of a ninja. This is the average amount of time (in execution seconds) they
+spend in the costume shop.
+`PATime` is the average arrival time of a pirate. This is the average amount of time (in execution seconds) they
+spend adventuring before visiting the costuming department. Note, some individuals will visit multiple
+times.
+`NATime` is the average arrival time of a ninja. This is the average amount of time (in execution seconds) they
+spend adventuring before visiting the costuming department. Note, some individuals will visit multiple
+times.
 
-1. generate threads and make a lock that prevents threads from starting
-2. unlock and begin process (start sleep timer for arrival times)
+To test this program, use the command `chmod +x test.sh` then `./test.sh`.
 
-
-announce when someone has arrived. make a queue?
-
-
-who to let in side
-numOfCostumeTeams
-
-
-if a arrival is close to 30 mins
-  then do that immediately, if they have the same then its random
- else 
-  favor the side with a number of people waiting with equal to numOfCostumeTeams
-  
-  if both sides have > numOfCostume Teams
-    take the average arrival time and go with the highest one
-    
-    if the same then random
-*arrived pirates and ninjas are stored in a ordered queue where the head of the queue is stored by their time of arrival (older threads go first)
-
-
+Our algorithm for switching between ninjas and pirates is that if the first guy in the queue is close to 30 then switch, otherwise stay with the team that can fill the store the best.
